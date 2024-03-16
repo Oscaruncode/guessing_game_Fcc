@@ -1,29 +1,30 @@
 #!/bin/bash
-PSQL="psql --username=freecodecamp --dbname=<database_name> -t --no-align -c"
-
-
-
-
+PSQL="psql --username=freecodecamp --dbname=guessing_game -t --no-align -c"
 SECRET=$(( RANDOM % 1000 + 1 ))
 
 echo "Enter your username:"
 read USERNAME
 echo $USERNAME
 
+# Check if the username already exists
+GET_USERNAME=$($PSQL "SELECT username FROM players WHERE username='$USERNAME'")
 
-$GET_USERNAME=$($PSQL "SELECT username FROM players WHERE username=$USERNAME")
-
-if [[ -z $GET_USERNAME ]]
-then
+if [[ -z $GET_USERNAME ]]; then
   echo "Welcome, $USERNAME! It looks like this is your first time here."
+  # INSERT player
+  INSERT_PLAYER=$($PSQL "INSERT INTO players(username) VALUES('$USERNAME')")
+  # Verify successful insertion and get player_id
+  PLAYER_ID=$($PSQL "SELECT player_id FROM players WHERE username='$USERNAME'")
 else
-  #Get games_played
-  #Get best_game
+  # Get player_id
+  PLAYER_ID=$($PSQL "SELECT player_id FROM players WHERE username='$USERNAME'")
+  # Get games_played
+  GAMES_PLAYED=$($PSQL "SELECT COUNT(game_id) FROM games LEFT JOIN players USING(player_id) WHERE username='$USERNAME'")
+  # Get best_game
+  BEST_GAME=$($PSQL "SELECT MIN(score) FROM games LEFT JOIN players USING(player_id) WHERE username='$USERNAME'")
 
-  echo "Welcome back, $USERNAME! You have played <games_played> games, and your best game took <best_game> guesses."
+  echo "Welcome back, $USERNAME! You have played $GAMES_PLAYED games, and your best game took $BEST_GAME guesses."
 fi
-
-
 
 echo "Guess the secret number between 1 and 1000:"
 
@@ -43,12 +44,9 @@ while true; do
       echo "It's higher than that, guess again:"
     fi
   fi
-
-
 done
 
 echo "You guessed it in $TRIES tries. The secret number was $SECRET. Nice job!"
 
-
-#GET_USER_INFO=$($PSQL "SELECT p.player_id,p.username,g.score FROM players AS p LEFT JOIN games AS g ON p.player_id=g.player_id WHERE p.username='$USERNAME'")
-
+# Insert game record
+INSERT_GAME=$($PSQL "INSERT INTO games(player_id,score) VALUES('$PLAYER_ID',$TRIES)")
